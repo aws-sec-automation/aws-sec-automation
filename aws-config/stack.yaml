@@ -8,6 +8,10 @@ Parameters:
     Description: 'Do you have an exisiting AWS Config delivery channel?'
     Default: 'false'
     AllowedValues: ['false', 'true']
+  lambdaFunctionName:
+    Type: "String"
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
+    Default: "t3chfest-awsconfig"
 Conditions:
   CreateDeliveryChannel: !Equals [ !Ref DeliveryChannelExists, 'false' ]
 Resources:
@@ -56,3 +60,159 @@ Resources:
           - Effect: Allow
             Action: config:Put*
             Resource: '*'
+  ConfigRuleS3read:
+    Type: AWS::Config::ConfigRule
+    DependsOn: ConfigRecorder
+    Properties:
+      ConfigRuleName: S3PublicRead
+      Description: S3 public read
+      Source:
+        Owner: AWS
+        SourceIdentifier: S3_BUCKET_PUBLIC_READ_PROHIBITED
+  ConfigRuleS3write:
+    Type: AWS::Config::ConfigRule
+    DependsOn: ConfigRecorder
+    Properties:
+      ConfigRuleName: S3PublicWrite
+      Description: S3 public write
+      Source:
+        Owner: AWS
+        SourceIdentifier: S3_BUCKET_PUBLIC_WRITE_PROHIBITED
+  ConfigRuleSSHrestricted:
+    Type: AWS::Config::ConfigRule
+    DependsOn: ConfigRecorder
+    Properties:
+      ConfigRuleName: EC2SecurityGroupssh
+      Description: EC2 SecurityvGroup ssh open
+      Source:
+        Owner: AWS
+        SourceIdentifier: INCOMING_SSH_DISABLED
+  ConfigRuleIAMUser:
+    Type: AWS::Config::ConfigRule
+    DependsOn: ConfigRecorder
+    Properties:
+      ConfigRuleName: MFAUserEnabled
+      Description: IAM User MFA enabled
+      Source:
+        Owner: AWS
+        SourceIdentifier: IAM_USER_MFA_ENABLED
+  lambdaFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Description: "AWS Config Remediation Code"
+      FunctionName: !Ref "lambdaFunctionName"
+      Code:
+        ZipFile: !Sub |
+          import json
+          import boto3
+          from botocore.exceptions import ClientError
+          ec2 = boto3.client('ec2')
+
+          def handler(event,context):
+              #Creating delete request
+              print('se invoca')
+              print(event)
+              dtype = event['detail-type']
+              if dtype == "Config Rules Compliance Change":
+                  ruleName = event['detail']['configRuleName']
+                  print(ruleName)
+                  if ruleName == "EC2SecurityGroupssh":
+                      nonCompliantSG = event['detail']['newEvaluationResult']['evaluationResultIdentifier']['evaluationResultQualifier']['resourceId']
+                      print(nonCompliantSG)
+                      try:
+                          remediate_sg('0.0.0.0/0', nonCompliantSG)
+                      except ClientError as e:
+                          print(e)
+                  elif ruleName == "MFAUserEnabled":
+                      pass
+                  elif ruleName == "S3PublicWrite":
+                      pass
+                  elif ruleName == "S3PublicRead":
+                      pass
+          def remediate_sg(ip, sg):
+              """Return EC2 SG object based on filters defined by provided VPCID/SGID"""
+              sgrules = ec2.describe_security_groups(Filters=[
+                  {
+                      'Name': 'group-id',
+                      'Values': [sg]
+                  }
+              ]
+              )
+              r = remove_old_rule(sgrules, sg, ip)
+              if r is True:
+                  #sg_add_ingress(ip, sg)
+                  return True
+              elif r is False:
+                  return False
+          def remove_old_rule(r, sg, ip):
+              """Remove any existing rules in the SG provided the current CIDR doesn't match"""
+              rules = r['SecurityGroups'][0]
+              if len(rules['IpPermissions']) > 0:
+                  curr_ip = r['SecurityGroups'][0]['IpPermissions'][0]['IpRanges'][0]['CidrIp']
+                  print(curr_ip)
+                  print(ip)
+                  if str(ip) == str(curr_ip):
+                      print('revoca')
+                      EC2_CLIENT.revoke_security_group_ingress(GroupId=sg, IpPermissions=rules['IpPermissions'])
+                      return True
+              else:
+                  print('No security group rules for ' + sg)
+                  return True
+      Handler: "index.handler"
+      Role: !GetAtt "lambdaIAMRole.Arn"
+      Runtime: "python3.7"
+    DependsOn: lambdaBucketCode
+  lambdaIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Resource: "*"
+                Action:
+                  - "ec2:DescribeSecurityGroups"
+                  - "ec2:RevokeSecurityGroupIngress"
+              - Effect: "Allow"
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${lambdaFunctionName}:*"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+          PolicyName: "AwsConfigRemediation_Lambda_Policy"
+  lambdaBucketCode: # cannot be deleted with data
+    Type: 'AWS::S3::Bucket'
+  lambdaLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${lambdaFunctionName}"
+      RetentionInDays: 90
+  AmazonCloudWatchEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.config
+        detail-type:
+          - 'Config Rules Compliance Change'
+        detail:
+          ConfigRuleName:
+            - EC2SecurityGroupssh
+            - S3PublicWrite
+            - S3PublicRead
+            - MFAUserEnabled
+      Targets:
+        -
+          Arn: !GetAtt lambdaFunction.Arn
+          Id: LambdaConfigEvent
