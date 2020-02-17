@@ -12,6 +12,9 @@ Parameters:
     Type: "String"
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
     Default: "t3chfest-awsconfig"
+  ForceMFAPolicy:
+    Type: "String"
+    Default: RestrictAccess
 Conditions:
   CreateDeliveryChannel: !Equals [ !Ref DeliveryChannelExists, 'false' ]
 Resources:
@@ -106,6 +109,7 @@ Resources:
         ZipFile: !Sub |
           import json
           import boto3
+          import os
           from botocore.exceptions import ClientError
           ec2 = boto3.client('ec2')
 
@@ -125,7 +129,9 @@ Resources:
                           except ClientError as e:
                               print(e)
                   elif ruleName == "MFAUserEnabled":
-                      pass
+                      status = event['detail']['newEvaluationResult']['complianceType']
+                      userId = event['detail']['newEvaluationResult']['evaluationResultIdentifier']['evaluationResultQualifier']['resourceId']
+                      attach_dettach_RestrictivePolicy(userId,status)
                   elif ruleName == "S3PublicRead" or "S3PublicWrite":
                       status = event['detail']['newEvaluationResult']['complianceType']
                       if status == "NON_COMPLIANT":
@@ -160,9 +166,34 @@ Resources:
               else:
                   print('No security group rules for ' + sg)
                   return True
+
+          def attach_dettach_RestrictivePolicy(userId,status):
+              iam = boto3.resource('iam')
+              client = boto3.client('iam')
+              paginator = client.get_paginator('list_users')
+              response_iterator = paginator.paginate()
+              NON_COMPLIANT_USER = ""
+              for r in response_iterator:
+                  for u in r['Users']:
+                      user = iam.User(u['UserName'])
+                      user_id = user.user_id
+                      if userId == user_id:
+                          NON_COMPLIANT_USER =  user
+                          break
+              if status == "NON_COMPLIANT":
+                  response = NON_COMPLIANT_USER.attach_policy(
+                      PolicyArn=os.environ['PolicyARN']
+                  )
+              else:
+                  response = NON_COMPLIANT_USER.detach_policy(
+                      PolicyArn=os.environ['PolicyARN']
+                  )
       Handler: "index.handler"
       Role: !GetAtt "lambdaIAMRole.Arn"
       Runtime: "python3.7"
+      Environment:
+        Variables:
+          PolicyARN: !Ref ForceMFA
   lambdaIAMRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -184,6 +215,10 @@ Resources:
                 Action:
                   - "ec2:DescribeSecurityGroups"
                   - "ec2:RevokeSecurityGroupIngress"
+                  - "am:ListUsers"
+                  - "iam:GetUser"
+                  - "iam:AttachUserPolicy"
+                  - "iam:DetachUserPolicy"
               - Effect: "Allow"
                 Resource: "*"
                 Action:
@@ -213,3 +248,50 @@ Resources:
         -
           Arn: !GetAtt lambdaFunction.Arn
           Id: LambdaConfigEvent
+  ForceMFA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17",
+        Statement:
+          - Sid: "AllowAllUsersToListAccounts"
+            Effect: "Allow"
+            Action:
+              - "iam:ListAccountAliases"
+              - "iam:ListUsers"
+            Resource: "arn:aws:iam::${AWS::AccountId}:user/*"
+          - Sid: "AllowIndividualUserToSeeTheirAccountInformation"
+            Effect: "Allow"
+            Action:
+              - "iam:ChangePassword"
+              - "iam:CreateLoginProfile"
+              - "iam:DeleteLoginProfile"
+              - "iam:GetAccountPasswordPolicy"
+              - "iam:GetAccountSummary"
+              - "iam:GetLoginProfile"
+              - "iam:UpdateLoginProfile"
+            Resource: "arn:aws:iam::${AWS::AccountId}:user/${aws:username}"
+          - Sid: "AllowIndividualUserToListTheirMFA"
+            Effect: "Allow"
+            Action":
+              - "iam:ListVirtualMFADevices"
+              - "iam:ListMFADevices"
+            Resource":
+              - "arn:aws:iam::${AWS::AccountId}:mfa/*"
+              - "arn:aws:iam::${AWS::AccountId}:user/${aws:username}"
+          - Sid: "AllowIndividualUserToManageThierMFA"
+            Effect": "Allow"
+            Action":
+              - "iam:CreateVirtualMFADevice"
+              - "iam:DeactivateMFADevice"
+              - "iam:DeleteVirtualMFADevice"
+              - "iam:EnableMFADevice"
+              - "iam:ResyncMFADevice"
+            Resource:
+              - "arn:aws:iam::${AWS::AccountId}:mfa/${aws:username}"
+              - "arn:aws:iam::${AWS::AccountId}:user/${aws:username}"
+          - Sid: "DoNotAllowAnythingOtherThanAboveUnlessMFAd"
+            Effect": "Deny"
+            NotAction": "iam:*"
+            Resource": "*"
+        PolicyName: !Ref ForceMFAPolicy
