@@ -13,6 +13,7 @@ Resources:
     Properties:
       Description: "AWS Config Remediation Code"
       FunctionName: !Ref "lambdaFunctionName"
+      Timeout: 900
       Code:
         ZipFile: !Sub |
           import json
@@ -23,57 +24,72 @@ Resources:
 
           def handler(event,context):
               #Creating delete request
-              print('se invoca')
-              print(event)
-              dtype = event['detail-type']
-              if dtype == "Config Rules Compliance Change":
-                  ruleName = event['detail']['configRuleName']
-                  if ruleName == "EC2SecurityGroupssh":
-                      status = event['detail']['newEvaluationResult']['complianceType']
-                      if status == "NON_COMPLIANT":
-                          nonCompliantSG = event['detail']['newEvaluationResult']['evaluationResultIdentifier']['evaluationResultQualifier']['resourceId']
-                          try:
-                              remediate_sg('0.0.0.0/0', nonCompliantSG)
-                          except ClientError as e:
-                              print(e)
-                  elif ruleName == "MFAUserEnabled":
-                      status = event['detail']['newEvaluationResult']['complianceType']
-                      userId = event['detail']['newEvaluationResult']['evaluationResultIdentifier']['evaluationResultQualifier']['resourceId']
-                      attach_dettach_RestrictivePolicy(userId,status)
-                  elif ruleName == "S3PublicRead" or "S3PublicWrite":
-                      status = event['detail']['newEvaluationResult']['complianceType']
-                      if status == "NON_COMPLIANT":
-                          nonCompliantBucket = event['detail']['newEvaluationResult']['evaluationResultIdentifier']['evaluationResultQualifier']['resourceId']
-                          s3 = boto3.resource('s3')
-                          bucket = s3.Bucket(nonCompliantBucket)
-                          acl = bucket.Acl()
-                          acl.put(ACL='private')
-          def remediate_sg(ip, sg):
-              """Return EC2 SG object based on filters defined by provided VPCID/SGID"""
-              sgrules = ec2.describe_security_groups(Filters=[
-                  {
-                      'Name': 'group-id',
-                      'Values': [sg]
-                  }
-              ]
-              )
-              r = remove_old_rule(sgrules, sg, ip)
+              describe_open_ssh_security_groups()
+              describe_open_s3_buckets()
+              describe_users_withoutMFA()
 
-          def remove_old_rule(r, sg, ip):
-              """Remove any existing rules in the SG provided the current CIDR doesn't match"""
-              rules = r['SecurityGroups'][0]
-              if len(rules['IpPermissions']) > 0:
-                  for rule in rules['IpPermissions']:
-                      port = rule['FromPort']
-                      if port == 22:
-                          curr_ip = rule['IpRanges'][0]['CidrIp']
-                          if str(ip) == str(curr_ip):
-                              print('revoca')
-                              ec2.revoke_security_group_ingress(GroupId=sg, IpPermissions=[rule])
-                              return True
-              else:
-                  print('No security group rules for ' + sg)
-                  return True
+
+          def describe_open_ssh_security_groups():
+              client = boto3.client('ec2')
+              paginator = client.get_paginator('describe_security_groups')
+              response_iterator = paginator.paginate(Filters=[
+                  {
+                  'Name':'ip-permission.from-port',
+                  'Values': ['22']
+                  },
+                  {
+                      'Name': 'ip-permission.cidr',
+                      'Values': ['0.0.0.0/0']
+                  }
+              ])
+              SGs = []
+              for r in response_iterator:
+                  SGs.extend(r['SecurityGroups'])
+              revokeSGs(SGs,client)
+
+          def revokeSGs(sgs,client):
+              for sg in sgs:
+                  client.revoke_security_group_ingress(GroupName=sg['GroupName'], IpPermissions=sg['IpPermissions'])
+
+          def describe_open_s3_buckets():
+              client = boto3.client('s3')
+              s3 = boto3.resource('s3')
+              buckets = client.list_buckets()['Buckets']
+              for b in buckets:
+                  ACL = client.get_bucket_acl(
+                      Bucket=b['Name']
+                  )
+                  ACL_grants = ACL['Grants']
+                  for g in ACL_grants:
+                     Grantee = g['Grantee']
+                     if 'URI' in Grantee:
+                         if Grantee['URI'] == 'http://acs.amazonaws.com/groups/global/AllUsers':
+                              bucket = s3.Bucket(nonCompliantBucket)
+                              acl = bucket.Acl()
+                              acl.put(ACL='private')
+
+          def describe_users_withoutMFA():
+              client = boto3.client('iam')
+              iam_users = []
+              response = client.list_users()
+              for user in response['Users']:
+                  iam_users.append({'UserName':user['UserName'],'UserId':user['UserId']})
+              while 'Marker' in response:
+                  response = client.list_users(Marker=response['Marker'])
+                  for user in response['Users']:
+                      iam_users.append({'UserName':user['UserName'],'UserId':user['UserId']})
+              no_mfa_users = []
+              mfa_users = []
+              for iam_user in iam_users:
+                  response = client.list_mfa_devices(UserName=iam_user['UserName'])
+                  if not response['MFADevices']:
+                      no_mfa_users.append(iam_user)
+                  else:
+                      mfa_users.append(iam_user)
+              for user in no_mfa_users:
+                  attach_dettach_RestrictivePolicy(user['UserId'],'NON_COMPLIANT')
+              for user in mfa_users:
+                  attach_dettach_RestrictivePolicy(user['UserId'],'COMPLIANT')
 
           def attach_dettach_RestrictivePolicy(userId,status):
               iam = boto3.resource('iam')
@@ -123,14 +139,14 @@ Resources:
                 Action:
                   - "ec2:DescribeSecurityGroups"
                   - "ec2:RevokeSecurityGroupIngress"
-                  - "am:ListUsers"
+                  - "iam:ListUsers"
                   - "iam:GetUser"
                   - "iam:AttachUserPolicy"
                   - "iam:DetachUserPolicy"
-              - Effect: "Allow"
-                Resource: "*"
-                Action:
+                  - "s3:ListAllMyBuckets"
                   - "s3:PutBucketAcl"
+                  - "s3:GetBucketAcl"
+                  - "iam:ListMFADevices"
               - Effect: "Allow"
                 Resource:
                   - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${lambdaFunctionName}:*"
@@ -147,11 +163,7 @@ Resources:
   AmazonCloudWatchEventRule:
     Type: AWS::Events::Rule
     Properties:
-      EventPattern:
-        source:
-          - aws.config
-        detail-type:
-          - 'Config Rules Compliance Change'
+      ScheduleExpression: rate(1 hour)
       Targets:
         -
           Arn: !GetAtt lambdaFunction.Arn

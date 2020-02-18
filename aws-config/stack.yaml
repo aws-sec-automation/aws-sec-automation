@@ -212,7 +212,7 @@ Resources:
                 Action:
                   - "ec2:DescribeSecurityGroups"
                   - "ec2:RevokeSecurityGroupIngress"
-                  - "am:ListUsers"
+                  - "iam:ListUsers"
                   - "iam:GetUser"
                   - "iam:AttachUserPolicy"
                   - "iam:DetachUserPolicy"
