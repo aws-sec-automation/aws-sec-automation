@@ -46,5 +46,7 @@ In the SSH case it revokes the old rule in the Security Group. For the Public pe
 
 ## Lambda Function
 
+The lambda function code is embeded in the yaml stack for Cloudformation. The lambda code can be found in the image below.
+The event from AWS Config is sent to the lambda function through Cloudwatch Events and is received in the handler inside the 'event' variable. Once it's received we are able to parse it and execute the remediation process. We use the boto3 SDK to call the AWS API.
 ![alt text](./lambda.png)
 
