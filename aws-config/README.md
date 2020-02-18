@@ -46,3 +46,5 @@ In the SSH case it revokes the old rule in the Security Group. For the Public pe
 
 ## Lambda Function
 
+![alt text](./lambda.png)
+
