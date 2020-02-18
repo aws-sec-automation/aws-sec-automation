@@ -128,7 +128,7 @@ Resources:
                   elif ruleName == "MFAUserEnabled":
                       status = event['detail']['newEvaluationResult']['complianceType']
                       userId = event['detail']['newEvaluationResult']['evaluationResultIdentifier']['evaluationResultQualifier']['resourceId']
-                      attach_dettach_RestrictivePolicy(userId,status)
+                      attach_detach_RestrictivePolicy(userId,status)
                   elif ruleName == "S3PublicRead" or "S3PublicWrite":
                       status = event['detail']['newEvaluationResult']['complianceType']
                       if status == "NON_COMPLIANT":
@@ -164,7 +164,7 @@ Resources:
                   print('No security group rules for ' + sg)
                   return True
 
-          def attach_dettach_RestrictivePolicy(userId,status):
+          def attach_detach_RestrictivePolicy(userId,status):
               iam = boto3.resource('iam')
               client = boto3.client('iam')
               paginator = client.get_paginator('list_users')

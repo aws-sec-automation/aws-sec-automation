@@ -87,11 +87,11 @@ Resources:
                   else:
                       mfa_users.append(iam_user)
               for user in no_mfa_users:
-                  attach_dettach_RestrictivePolicy(user['UserId'],'NON_COMPLIANT')
+                  attach_detach_RestrictivePolicy(user['UserId'],'NON_COMPLIANT')
               for user in mfa_users:
-                  attach_dettach_RestrictivePolicy(user['UserId'],'COMPLIANT')
+                  attach_detach_RestrictivePolicy(user['UserId'],'COMPLIANT')
 
-          def attach_dettach_RestrictivePolicy(userId,status):
+          def attach_detach_RestrictivePolicy(userId,status):
               iam = boto3.resource('iam')
               client = boto3.client('iam')
               paginator = client.get_paginator('list_users')
