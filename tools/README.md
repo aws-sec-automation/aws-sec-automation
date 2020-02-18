@@ -11,4 +11,4 @@ The aim is to collect arsenals and tools that may be useful in a cloud environme
 
 ## Other tools
 
-* [Git-secrets](https://github.com/awslabs/git-secrets)
+
