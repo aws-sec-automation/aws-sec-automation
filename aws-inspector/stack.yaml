@@ -17,6 +17,13 @@ Parameters:
   sshIp:
     Type: String
     Default: 10.0.0.0/0
+  lambdaFunctionName:
+    Type: "String"
+    AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
+    Default: "t3chfest-awsinspector"
+  rulePackageCVEArn:
+    Type: "String"
+    Default: "arn:aws:inspector:eu-west-1:357557129151:rulespackage/0-ubA5XvBh"
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -62,6 +69,11 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -76,9 +88,100 @@ Resources:
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
+      UserData:
+        Fn::Base64:
+          !Sub |
+              #!/bin/bash -ex
+              wget https://inspector-agent.amazonaws.com/linux/latest/install;
+              sudo bash install;
       ImageId: ami-035966e8adab4aaad
       InstanceType: "t2.micro"
       KeyName: rgonzalez-aws
       SecurityGroupIds:
         - !Ref SecurityGroup
       SubnetId: !Ref PublicSubnet
+      Tags:
+        - Key: Name
+          Value: EC2_Inspector
+  ResourceGroup:
+    Type: AWS::Inspector::ResourceGroup
+    Properties:
+      ResourceGroupTags:
+        - Key: Name
+          Value: EC2_Inspector
+  AssessmentTarget:
+    Type: AWS::Inspector::AssessmentTarget
+    Properties:
+        ResourceGroupArn : !GetAtt ResourceGroup.Arn
+  AssessmentTemplate:
+    Type: AWS::Inspector::AssessmentTemplate
+    Properties:
+      AssessmentTargetArn: !GetAtt AssessmentTarget.Arn
+      AssessmentTemplateName: "Aws Inspector sec-aut"
+      DurationInSeconds: 900
+      RulesPackageArns:
+        - !Ref rulePackageCVEArn
+  lambdaFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Description: "AWS Config Remediation Code"
+      FunctionName: !Ref "lambdaFunctionName"
+      Timeout: 900
+      Code:
+        ZipFile: !Sub |
+          import json
+          import boto3
+          import os
+          from botocore.exceptions import ClientError
+          ec2 = boto3.client('ec2')
+          def handler(event,context):
+              #Creating delete request
+              print(event)
+      Handler: "index.handler"
+      Role: !GetAtt "lambdaIAMRole.Arn"
+      Runtime: "python3.7"
+  lambdaIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${lambdaFunctionName}:*"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+          PolicyName: "AwsInspectorRemediation_Lambda_Policy"
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: !GetAtt lambdaFunction.Arn
+          Protocol: lambda
+      TopicName: SNS_inspector
+  SNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: SnsTopicPolicy
+          Effect: Allow
+          Principal:
+            Service: inspector.amazonaws.com
+          Action: sns:Publish
+          Resource: "*"
+      Topics:
+        - !Ref SNSTopic

@@ -1,17 +1,17 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Metadata:
   License: Apache-2.0
-Description: 'This templates enables AWS Config.'
+Description: 'This templates enables AWS Cloudwatch.'
 Parameters:
   lambdaFunctionName:
     Type: "String"
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
-    Default: "t3chfest-awsconfig"
+    Default: "t3chfest-awscloudwatch"
 Resources:
   lambdaFunction:
     Type: "AWS::Lambda::Function"
     Properties:
-      Description: "AWS Config Remediation Code"
+      Description: "AWS Cloudwatch Remediation Code"
       FunctionName: !Ref "lambdaFunctionName"
       Timeout: 900
       Code:
@@ -154,7 +154,7 @@ Resources:
                   - "logs:CreateLogGroup"
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
-          PolicyName: "AwsConfigRemediation_Lambda_Policy"
+          PolicyName: "AwsCloudwatchRemediation_Lambda_Policy"
   lambdaLogGroup:
     Type: "AWS::Logs::LogGroup"
     Properties:
