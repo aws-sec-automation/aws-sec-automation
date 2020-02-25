@@ -15,6 +15,7 @@ Parameters:
     Type: String
     Default: eu-west-1a
   sshIp:
+    Description: Change to your public IP
     Type: String
     Default: 10.0.0.0/0
   lambdaFunctionName:
@@ -94,15 +95,23 @@ Resources:
               #!/bin/bash -ex
               wget https://inspector-agent.amazonaws.com/linux/latest/install;
               sudo bash install;
+              sudo snap start amazon-ssm-agent;
       ImageId: ami-035966e8adab4aaad
       InstanceType: "t2.micro"
       KeyName: rgonzalez-aws
       SecurityGroupIds:
         - !Ref SecurityGroup
       SubnetId: !Ref PublicSubnet
+      IamInstanceProfile: !Ref EC2InstanceProfile
       Tags:
         - Key: Name
           Value: EC2_Inspector
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+    DependsOn: EC2Role
   ResourceGroup:
     Type: AWS::Inspector::ResourceGroup
     Properties:
@@ -126,17 +135,93 @@ Resources:
     Properties:
       Description: "AWS Config Remediation Code"
       FunctionName: !Ref "lambdaFunctionName"
-      Timeout: 900
+      Timeout: 100
       Code:
         ZipFile: !Sub |
-          import json
-          import boto3
-          import os
-          from botocore.exceptions import ClientError
-          ec2 = boto3.client('ec2')
-          def handler(event,context):
-              #Creating delete request
-              print(event)
+            # Copyright (c) 2016 Amazon Web Services, Inc.
+            import boto3
+            import json
+            import logging
+            import datetime
+            ssm = boto3.client('ssm')
+            inspector = boto3.client('inspector')
+            logger = logging.getLogger()
+            # quick function to handle datetime serialization problems
+            enco = lambda obj: (
+                obj.isoformat()
+                if isinstance(obj, datetime.datetime)
+                or isinstance(obj, datetime.date)
+                else None
+            )
+            def handler(event, context):
+
+                message = event['Records'][0]['Sns']['Message']
+                notificationType = json.loads(message)['event']
+                if notificationType != "FINDING_REPORTED":
+                    logger.info('Skipping notification that is not a new finding: ' + notificationType)
+                    return 1
+                # extract finding ARN
+                findingArn = json.loads(message)['finding']
+                # get finding and extract detail
+                response = inspector.describe_findings(findingArns = [ findingArn ], locale='EN_US')
+                finding = response['findings'][0]
+                # skip uninteresting findings
+                title = finding['title']
+                logger.debug('Finding title: ' + title)
+                if title == "Unsupported Operating System or Version":
+                    logger.info('Skipping finding: ' + title)
+                    return 1
+                if title == "No potential security issues found":
+                    logger.info('Skipping finding: ' + title)
+                    return 1
+                service = finding['service']
+                logger.debug('Service: ' + service)
+                if service != "Inspector":
+                    logger.info('Skipping finding from service: ' + service)
+                    return 1
+                cveId = ""
+                for attribute in finding['attributes']:
+                    if attribute['key'] == "CVE_ID":
+                        cveId = attribute['value']
+                        break
+                logger.info('CVE ID: ' + cveId)
+                if cveId == "":
+                    return 1
+                assetType = finding['assetType']
+                if assetType != "ec2-instance":
+                    return 1
+                instanceId = finding['assetAttributes']['agentId']
+                if not instanceId.startswith("i-"):
+                    return 1
+                filterList = [ { 'key': 'InstanceIds', 'valueSet': [ instanceId ] } ]
+                response = ssm.describe_instance_information( InstanceInformationFilterList = filterList, MaxResults = 50 )
+                instanceInfo = response['InstanceInformationList'][0]
+                pingStatus = instanceInfo['PingStatus']
+                lastPingTime = instanceInfo['LastPingDateTime']
+                agentVersion = instanceInfo['AgentVersion']
+                platformType = instanceInfo['PlatformType']
+                osName = instanceInfo['PlatformName']
+                osVersion = instanceInfo['PlatformVersion']
+                if pingStatus != 'Online':
+                    logger.info('SSM agent for this instance is not online: ' + pingStatus)
+                    return 1
+                if platformType != "Linux":
+                    logger.info('Skipping non-Linux platform: ' + platformType)
+                    return 1
+                # to-do: patch only CVEs, or patch only the specific CVE
+                if osName == 'Ubuntu':
+                    commandLine = "apt-get update -qq -y; apt-get upgrade -y"
+                elif osName == 'Amazon Linux AMI':
+                    commandLine = "yum update -q -y; yum upgrade -y"
+                else:
+                    return 1
+                response = ssm.send_command(
+                    InstanceIds = [ instanceId ],
+                    DocumentName = 'AWS-RunShellScript',
+                    Comment = 'Lambda function performing Inspector CVE finding auto-remediation',
+                    Parameters = { 'commands': [ commandLine ] }
+                    )
+                logger.info(response)
       Handler: "index.handler"
       Role: !GetAtt "lambdaIAMRole.Arn"
       Runtime: "python3.7"
@@ -157,6 +242,12 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Effect: "Allow"
+                Resource: "*"
+                Action:
+                  - "inspector:DescribeFindings"
+                  - "ssm:SendCommand"
+                  - "ssm:DescribeInstanceInformation"
+              - Effect: "Allow"
                 Resource:
                   - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${lambdaFunctionName}:*"
                 Action:
@@ -164,6 +255,13 @@ Resources:
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
           PolicyName: "AwsInspectorRemediation_Lambda_Policy"
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !GetAtt "lambdaFunction.Arn"
+      Principal: "sns.amazonaws.com"
+      SourceArn: !Ref SNSTopic
   SNSTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -185,3 +283,18 @@ Resources:
           Resource: "*"
       Topics:
         - !Ref SNSTopic
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+      RoleName: EC2_ssm_role_inspector
