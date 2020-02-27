@@ -13,6 +13,7 @@ The aim is to collect arsenals and tools that may be useful in a cloud environme
 
 * [A resource cloud scanner that analyzes and reports unused resources to cut unwanted expenses](https://github.com/similarweb/finala)
 * [Antivirus Scan for S3 buckets](https://github.com/widdix/aws-s3-virusscan)
+* [Find sensitive data files across AWS S3 buckets](https://github.com/Ucnt/aws-s3-data-finder/)
 * [Validate CloudFormation yaml/json templates against the CloudFormation spec and additional checks](https://github.com/aws-cloudformation/cfn-python-lint)
 * [BinaryAlert: Serverless, Real-time & Retroactive Malware Detection](https://github.com/airbnb/binaryalert)
 * [Saw: a multi-purpose tool for AWS CloudWatch Logs](https://github.com/TylerBrock/saw) 
