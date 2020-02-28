@@ -23,7 +23,7 @@ This cloudformation stack deploys and configures the following resources:
 * AWS SNS Topic
 * AWS EC2 Role for SSM
 
-## Scenary
+## Scenario
 
 This template configures AWS Inspector with the CVE assessmemt template. It deploys an EC2 instance and it installs the AWS Inspector agent in the instance.
 When an assessment run finishes it sends a message to SNS which triggers the Lambda function. 
