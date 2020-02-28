@@ -20,6 +20,8 @@ In this folder there is a collection of lambda functions that could be useful fo
 * [AWS lambda security checks for CI/CD](https://github.com/atrigomv/lambda_checker)
 * [Security Incident Response Instance Isolation](https://github.com/miztiik/security-incident-response-instance-isolation)
 * [Useful lambdas](https://github.com/eRaMvn/aws-lambda)
+* [Collection of Security Lamndas for autoremediation](https://github.com/curtis-turner/AutomatedSecurity)
+* [Filtering Security Alerts](https://github.com/mikewill4/aws-lambda)
 
 ## Lambda Code
 * [Lambda for shuting down instances with a specific tag](./ebs-backup.py)
