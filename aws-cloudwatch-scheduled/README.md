@@ -11,7 +11,7 @@ This cloudformation stack deploys and configures the following resources:
 * IAM Policy
 * AWS Cloudwatch Event
 
-## Scenary
+## Scenario
 
 In this case a cloudwatch event is programmed to be triggered each one hour. It's not necessary to use AWS Config in this case, only Cloudwatch and the Lambda function provided are needed.
 In this scenary we are not working with events but with scheduled actions. Boto3 SDK is used to call the AWS API and receive all the information in order to check three things:
