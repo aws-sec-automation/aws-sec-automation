@@ -15,7 +15,10 @@ In this folder there is a collection of lambda functions that could be useful fo
 * [Cloudfare IP Security Group](https://github.com/johnmccuk/cloudflare-ip-security-group-update)
 * [AWS Serverless security workshop](https://github.com/aws-samples/aws-serverless-security-workshop)
 * [Linux Academy Resources](https://github.com/linuxacademy/la-aws-security_specialty)
-* [Automated Security Monitoring] (https://github.com/appsecco/alldaydevops-aism)  
+* [Automated Security Monitoring](https://github.com/appsecco/alldaydevops-aism)  
+* [AWS Lambda Paloalto controls](https://github.com/akittana/aws-lambda-paloalto)
+* [AWS lambda security checks for CI/CD](https://github.com/atrigomv/lambda_checker)
+* [Security Incident Response Instance Isolation](https://github.com/miztiik/security-incident-response-instance-isolation)
 
 ## Lambda Code
 * [Lambda for shuting down instances with a specific tag](./ebs-backup.py)
