@@ -1,7 +1,7 @@
 # AWS Lambda Function & Cloudformation Utils
 
 
-In this folder we want to collect lambda functions that could be useful for security purposes. Those functions could be configured with Cloudwatch to respond events or running periodically.
+In this folder there is a collection of lambda functions that could be useful for security purposes. These functions can be configured with Cloudwatch to respond events or running periodically.
 
 ## Lambda & Cloudformation Repositories
 * [AWS Lambda for Billing](https://github.com/asc-lab/aws-lambda-billing)
