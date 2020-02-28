@@ -43,7 +43,8 @@ When a rule is triggered it sends an event to AWS Cloudwatch Event. There is a f
 
 When the compliance status changes, the lambda function triggered through the cloudwatch event checks what rule has changed, and it solves the problem.
 1. In the SSH case it revokes the old rule in the Security Group. 
-2. For the Public permissions in the S3 buckets (Read and Write), the function is able to change the ACL to a private status. 3. Finally, for the MFA it attachs a restrictive IAM policy to the non compliant user, this policy only allows the user to activate his MFA, when the problem has been solved the lambda function detachs the restrictive policy to the user.
+2. For the Public permissions in the S3 buckets (Read and Write), the function is able to change the ACL to a private status.
+3. Finally, for the MFA it attachs a restrictive IAM policy to the non compliant user, this policy only allows the user to activate his MFA, when the problem has been solved the lambda function detachs the restrictive policy to the user.
 
 ## Lambda Function
 
