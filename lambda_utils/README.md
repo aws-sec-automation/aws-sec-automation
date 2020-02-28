@@ -8,7 +8,10 @@ In this folder we want to collect lambda functions that could be useful for secu
 * [AWS Lambda functions for security controls](https://github.com/awslabs/aws-lambda-security-controls)
 * [Collection of Serverless security resources](https://github.com/puresec/awesome-serverless-security)
 * [Sumologic security Lambda functions](https://github.com/SumoLogic/sumologic-aws-lambda)
+* [GDPatrol- Serverless Security Orchestration Automation and Response (SOAR) Framework for AWS GuardDuty](https://github.com/ansorren/GDPatrol)
+* [AWS-Lambda-Firewall](https://github.com/marekq/aws-lambda-firewall)
 * [AWS Serverless security workshop](https://github.com/aws-samples/aws-serverless-security-workshop)
+* [Linux Academy Resources](https://github.com/linuxacademy/la-aws-security_specialty)
 
 ## Lambda Code
 * [Lambda for shuting down instances with a specific tag](./ebs-backup.py)
