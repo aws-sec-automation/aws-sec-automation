@@ -23,6 +23,8 @@ In this folder there is a collection of lambda functions that could be useful fo
 * [Collection of Security Lamndas for autoremediation](https://github.com/curtis-turner/AutomatedSecurity)
 * [Filtering Security Alerts](https://github.com/mikewill4/aws-lambda)
 * [Tagging Reminder](https://github.com/EthanNguyen132/aws-resource-tagging-reminder)
+* [Cloudformation ssm inspect security compliance](https://github.com/notshof/aws-cloudformation-ssm-inspec-security-compliance)
+* [Cloudformation security hub exporter](https://github.com/m-mizutani/aws-securityhub-exporter)
 
 ## Lambda Code
 * [Lambda for shuting down instances with a specific tag](./ebs-backup.py)
