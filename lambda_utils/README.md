@@ -7,6 +7,7 @@ In this folder we want to collect lambda functions that could be useful for secu
 * [AWS Lambda for Billing](https://github.com/asc-lab/aws-lambda-billing)
 * [AWS Lambda functions for security controls](https://github.com/awslabs/aws-lambda-security-controls)
 * [Collection of Serverless security resources](https://github.com/puresec/awesome-serverless-security)
+* [Sumologic security Lambda functions](https://github.com/SumoLogic/sumologic-aws-lambda)
 * [AWS Serverless security workshop](https://github.com/aws-samples/aws-serverless-security-workshop)
 
 ## Lambda Code
