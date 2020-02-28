@@ -18,7 +18,7 @@ This cloudformation stack deploys and configures the following resources:
 * AWS Cloudwatch Event rule based on events
 * Four AWS Config Rules
 
-## Scenary
+## Scenario
 
 This template configures four config rules:
 
