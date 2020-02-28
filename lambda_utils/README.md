@@ -19,6 +19,7 @@ In this folder there is a collection of lambda functions that could be useful fo
 * [AWS Lambda Paloalto controls](https://github.com/akittana/aws-lambda-paloalto)
 * [AWS lambda security checks for CI/CD](https://github.com/atrigomv/lambda_checker)
 * [Security Incident Response Instance Isolation](https://github.com/miztiik/security-incident-response-instance-isolation)
+* [Useful lambdas](https://github.com/eRaMvn/aws-lambda)
 
 ## Lambda Code
 * [Lambda for shuting down instances with a specific tag](./ebs-backup.py)
