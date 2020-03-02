@@ -64,7 +64,7 @@ Resources:
                      Grantee = g['Grantee']
                      if 'URI' in Grantee:
                          if Grantee['URI'] == 'http://acs.amazonaws.com/groups/global/AllUsers':
-                              bucket = s3.Bucket(nonCompliantBucket)
+                              bucket = s3.Bucket(b['Name'])
                               acl = bucket.Acl()
                               acl.put(ACL='private')
 
