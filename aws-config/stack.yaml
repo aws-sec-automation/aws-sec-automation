@@ -11,14 +11,14 @@ Parameters:
   lambdaFunctionName:
     Type: "String"
     AllowedPattern: "^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$"
-    Default: "t3chfest-awsconfig"
+    Default: "codemotion-awsconfig"
 Conditions:
   CreateDeliveryChannel: !Equals [ !Ref DeliveryChannelExists, 'false' ]
 Resources:
   ConfigRecorder:
     Type: AWS::Config::ConfigurationRecorder
     Properties:
-      Name: t3chfest
+      Name: codemotion
       RecordingGroup:
         ResourceTypes: ['AWS::EC2::SecurityGroup','AWS::S3::Bucket','AWS::S3::AccountPublicAccessBlock','AWS::IAM::User']
       RoleARN: !GetAtt [ConfigRole, Arn]
@@ -233,6 +233,15 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${lambdaFunctionName}"
       RetentionInDays: 90
+  lambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref "lambdaFunctionName"
+      Principal: events.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !GetAtt AmazonCloudWatchEventRule.Arn
+
   AmazonCloudWatchEventRule:
     Type: AWS::Events::Rule
     Properties:
