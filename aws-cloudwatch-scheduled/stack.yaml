@@ -45,12 +45,12 @@ Resources:
               ])
               SGs = []
               for r in response_iterator:
-                  print('Security Group ',sg,' is non compliant. Revoking SG.')
                   SGs.extend(r['SecurityGroups'])
               revokeSGs(SGs,client)
 
           def revokeSGs(sgs,client):
               for sg in sgs:
+                  print('Security Group ',sg,' is non compliant. Revoking SG.')
                   client.revoke_security_group_ingress(GroupName=sg['GroupName'], IpPermissions=sg['IpPermissions'])
 
           def describe_open_s3_buckets():
