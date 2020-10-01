@@ -24,6 +24,7 @@ Resources:
 
           def handler(event,context):
               #Creating delete request
+              print('lambda invoked')
               describe_open_ssh_security_groups()
               describe_open_s3_buckets()
               describe_users_withoutMFA()
@@ -44,6 +45,7 @@ Resources:
               ])
               SGs = []
               for r in response_iterator:
+                  print('Security Group ',sg,' is non compliant. Revoking SG.')
                   SGs.extend(r['SecurityGroups'])
               revokeSGs(SGs,client)
 
@@ -67,6 +69,7 @@ Resources:
                               bucket = s3.Bucket(b['Name'])
                               acl = bucket.Acl()
                               acl.put(ACL='private')
+                              print('S3 Bucket ',b['Name'],' is non compliant. Changing ACL.')
 
           def describe_users_withoutMFA():
               client = boto3.client('iam')
@@ -87,6 +90,7 @@ Resources:
                   else:
                       mfa_users.append(iam_user)
               for user in no_mfa_users:
+                  print('User ',user,'has no MFA configured. Attaching restrictive policy.')
                   attach_detach_RestrictivePolicy(user['UserId'],'NON_COMPLIANT')
               for user in mfa_users:
                   attach_detach_RestrictivePolicy(user['UserId'],'COMPLIANT')
@@ -109,9 +113,12 @@ Resources:
                       PolicyArn=os.environ['PolicyARN']
                   )
               else:
-                  response = NON_COMPLIANT_USER.detach_policy(
-                      PolicyArn=os.environ['PolicyARN']
-                  )
+                  try:
+                    response = NON_COMPLIANT_USER.detach_policy(
+                        PolicyArn=os.environ['PolicyARN']
+                    )
+                  except:
+                    print('User ', NON_COMPLIANT_USER,' is compliant. Removing restrictive policy.')
       Handler: "index.handler"
       Role: !GetAtt "lambdaIAMRole.Arn"
       Runtime: "python3.7"
