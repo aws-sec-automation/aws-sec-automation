@@ -35,3 +35,6 @@ The AWS Lambda function checks for the CVEs and in case of finding them, it upda
 The lambda function code is embedded in the yaml stack for Cloudformation. The lambda code can be found in the image below.
 ![alt text](./lambda.png)
 
+## DEMO
+[![Watch Video](https://img.youtube.com/vi/3-K7uLUBQms/0.jpg)](https://www.youtube.com/watch?v=3-K7uLUBQms)
+
