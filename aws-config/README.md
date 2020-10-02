@@ -52,3 +52,5 @@ The lambda function code is embedded in the yaml stack for Cloudformation. The l
 The event from AWS Config is sent to the lambda function through Cloudwatch Events and is received in the handler inside the 'event' variable. Once it is received it is possible to parse it and execute the remediation process. Boto3 SDK is used to call the AWS API.
 ![alt text](./lambda.png)
 
+## DEMO
+[![Watch Video](https://img.youtube.com/vi/NpbZulqApvQ/0.jpg)](https://www.youtube.com/watch?v=NpbZulqApvQ)
