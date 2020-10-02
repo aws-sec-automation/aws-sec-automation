@@ -36,5 +36,5 @@ The lambda function code is embedded in the yaml stack for Cloudformation. The l
 ![alt text](./lambda.png)
 
 ## DEMO
-[![Watch Video](https://img.youtube.com/vi/3-K7uLUBQms/0.jpg)](https://www.youtube.com/watch?v=3-K7uLUBQms)
+[![Watch Video](https://img.youtube.com/vi/pcdpTxqPEFs/0.jpg)](https://www.youtube.com/watch?v=pcdpTxqPEFs)
 
