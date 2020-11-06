@@ -21,3 +21,6 @@ The aim is to collect arsenals and tools that may be useful in a cloud environme
 * [Github tool that scans public repositories for known token formats to prevent fraudulent use of credentials that were committed accidentally](https://developer.github.com/partnerships/token-scanning/)
 * [Darkport: Finds secrets and sensitive files across GitHub, GitLab and BitBucket committed in near real time.](https://shhgit.darkport.co.uk/) 
 * [Cloudformation security Checker - aws-cf-checker](https://github.com/widdix/aws-cf-checker)
+* [Bucky - discover S3 bucket misconfiguration](https://github.com/smaranchand/bucky)
+* [PrismX - Cloud Security Dashboard](https://github.com/omaidf/PrismX)
+* [Asecurecloud - Customizable AWS security configurations and best practices](https://asecure.cloud/)
