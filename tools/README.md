@@ -24,3 +24,4 @@ The aim is to collect arsenals and tools that may be useful in a cloud environme
 * [Bucky - discover S3 bucket misconfiguration](https://github.com/smaranchand/bucky)
 * [PrismX - Cloud Security Dashboard](https://github.com/omaidf/PrismX)
 * [Asecurecloud - Customizable AWS security configurations and best practices](https://asecure.cloud/)
+* [EC2 instances vulnerability scanner](https://github.com/lightspin-tech/red-detector)
